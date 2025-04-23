@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  RECEPTIONIST
+  INVENTORY_MANAGER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  IN_QUEUE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AppointmentType {
+  GENERAL
+  FOLLOW_UP
+  SPECIALIST
+  EMERGENCY
+}
+
+enum BedStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+
+enum WardType {
+  GENERAL
+  ICU
+  EMERGENCY
+  PEDIATRIC
+  MATERNITY
+  PSYCHIATRIC
+}
+
+enum AdmissionStatus {
+  ACTIVE
+  DISCHARGED
+  TRANSFERRED
+}
+
+enum InventoryCategory {
+  MEDICINE
+  EQUIPMENT
+  SUPPLIES
+}
+
+model User {
+  id             String        @id
+  email          String        @unique
+  firstName      String
+  lastName       String
+  role           Role
+  appointments   Appointment[] @relation("DoctorAppointments")
+  admissions     Admission[]   @relation("DoctorAdmissions")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Patient {
+  id             String        @id @default(uuid())
+  mrn            String        @unique // Medical Record Number
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime
+  gender         Gender
+  contactNumber  String
+  email          String?
+  address        String
+  bloodGroup     String?
+  allergies      String?
+  medicalHistory String?
+  appointments   Appointment[] @relation("PatientAppointments")
+  admissions     Admission[]   @relation("PatientAdmissions")
+  beds           Bed[]         @relation("PatientBeds")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Appointment {
+  id           String           @id @default(uuid())
+  patient      Patient          @relation("PatientAppointments", fields: [patientId], references: [id])
+  patientId    String
+  doctor       User             @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  doctorId     String
+  date         DateTime
+  time         String
+  status       AppointmentStatus
+  type         AppointmentType
+  notes        String?
+  queueNumber  Int?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model Bed {
+  id                     String     @id @default(uuid())
+  bedNumber              String     @unique
+  ward                   WardType
+  status                 BedStatus  @default(AVAILABLE)
+  patient                Patient?   @relation("PatientBeds", fields: [patientId], references: [id])
+  patientId              String?
+  admissionDate          DateTime?
+  expectedDischargeDate  DateTime?
+  notes                  String?
+  admissions             Admission[] @relation("BedAdmissions")
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+}
+
+model Admission {
+  id              String          @id @default(uuid())
+  patient         Patient         @relation("PatientAdmissions", fields: [patientId], references: [id])
+  patientId       String
+  bed             Bed             @relation("BedAdmissions", fields: [bedId], references: [id])
+  bedId           String
+  admissionDate   DateTime
+  dischargeDate   DateTime?
+  doctor          User            @relation("DoctorAdmissions", fields: [doctorId], references: [id])
+  doctorId        String
+  diagnosis       String?
+  status          AdmissionStatus @default(ACTIVE)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model InventoryItem {
+  id           String            @id @default(uuid())
+  name         String
+  category     InventoryCategory
+  description  String?
+  unit         String
+  quantity     Int
+  reorderLevel Int
+  cost         Float
+  supplier     String?
+  expiryDate   DateTime?
+  location     String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
