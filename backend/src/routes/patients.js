@@ -231,8 +231,14 @@ router.get('/:id/appointments',
           date: 'desc'
         }
       });
+      const formattedAppointments = appointments.map(appt => ({
+        ...appt,
+        date: appt.date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        time: appt.time // Ensure time is in HH:mm format
+      }));
       
-      res.json(appointments);
+      res.json(formattedAppointments);
+      // res.json(appointments);
     } catch (error) {
       res.status(500).json({ error: true, message: error.message });
     }

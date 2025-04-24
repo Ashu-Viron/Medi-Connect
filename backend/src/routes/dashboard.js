@@ -124,6 +124,10 @@ router.get('/appointments/stats', async (req, res) => {
       ORDER BY day ASC
     `;
     
+    const formattedStats = appointmentStats.map(stat => ({
+      day: stat.day,
+      count: Number(stat.count)
+    }));
     // Get appointments grouped by type
     const appointmentsByType = await prisma.appointment.groupBy({
       by: ['type'],
@@ -140,10 +144,22 @@ router.get('/appointments/stats', async (req, res) => {
       }
     });
     
+    // res.json({
+    //   daily: appointmentStats,
+    //   byType: appointmentsByType,
+    //   byStatus: appointmentsByStatus
+    // });
+
     res.json({
-      daily: appointmentStats,
-      byType: appointmentsByType,
-      byStatus: appointmentsByStatus
+      daily: formattedStats,
+      byType: appointmentsByType.map(type => ({
+        type: type.type,
+        count: Number(type._count.type)
+      })),
+      byStatus: appointmentsByStatus.map(status => ({
+        status: status.status,
+        count: Number(status._count.status)
+      }))
     });
   } catch (error) {
     res.status(500).json({ error: true, message: error.message });
@@ -165,19 +181,38 @@ router.get('/beds/stats', async (req, res) => {
     const wardStats = {};
     
     bedStats.forEach(stat => {
-      if (!wardStats[stat.ward]) {
-        wardStats[stat.ward] = {
+      
+    //   if (!wardStats[stat.ward]) {
+    //     wardStats[stat.ward] = {
+    //       total: 0,
+    //       available: 0,
+    //       occupied: 0,
+    //       maintenance: 0
+    //     };
+    //   }
+      
+    //   wardStats[stat.ward][stat.status.toLowerCase()] = stat._count.id;
+    //   wardStats[stat.ward].total += stat._count.id;
+    // });
+    
+    // res.json(wardStats);
+    const ward = stat.ward;
+      const status = stat.status.toLowerCase();
+      const count = Number(stat._count.id); // Fix BigInt here
+
+      if (!wardStats[ward]) {
+        wardStats[ward] = {
           total: 0,
           available: 0,
           occupied: 0,
           maintenance: 0
         };
       }
-      
-      wardStats[stat.ward][stat.status.toLowerCase()] = stat._count.id;
-      wardStats[stat.ward].total += stat._count.id;
+
+      wardStats[ward][status] = count;
+      wardStats[ward].total += count;
     });
-    
+
     res.json(wardStats);
   } catch (error) {
     res.status(500).json({ error: true, message: error.message });
