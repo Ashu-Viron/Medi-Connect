@@ -12,7 +12,7 @@ const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   allowedRoles,
   ...props 
 }) => {
-  const { isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded,user } = useUser();
   const location = useLocation();
 
   if (!isLoaded) {
@@ -27,6 +27,19 @@ const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     return <Navigate to="/sign-in" state={{ from: location }} replace />;
   }
 
+
+   // Get user's role from Clerk metadata
+   const userRole = user?.unsafeMetadata?.role as string;
+
+   //new code
+   if (!userRole) {
+     return <Navigate to="/select-role" state={{ from: location }} replace />;
+   }
+ 
+   if (allowedRoles && !allowedRoles.includes(userRole)) {
+     return <Navigate to="/unauthorized" replace />;
+   }
+   //new code
   return <Component {...props} />;
 };
 

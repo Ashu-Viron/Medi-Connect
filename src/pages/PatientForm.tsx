@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Save, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-
+import {patientApi} from '../services/api';
+import { useAuth } from '@clerk/clerk-react';
 import { Patient } from '../types';
 
 // Mock patient data
@@ -90,7 +91,7 @@ const PatientForm = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const { getToken } = useAuth();
   const { register, handleSubmit, formState: { errors }, reset } = useForm<PatientFormData>();
   
   const isEditMode = !!id;
@@ -98,10 +99,24 @@ const PatientForm = () => {
   useEffect(() => {
     // Simulate API call for existing patient
     const fetchPatient = async () => {
+      try {
+      const token = await getToken();
+        if (!token) {
+          navigate('/sign-in'); // Redirect to Clerk sign-in
+          return;
+        }
+
       if (isEditMode) {
         // In a real app, this would be an API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const patient = mockPatients.find(p => p.id === id);
+        // await new Promise(resolve => setTimeout(resolve, 1000));
+        // const patient = mockPatients.find(p => p.id === id);
+         // Fetch existing patient
+         const response = await patientApi.getById(id, token);
+         const patient = response.data;
+         reset({
+           ...patient,
+           dateOfBirth: patient.dateOfBirth.split('T')[0]
+         });
         
         if (patient) {
           reset({
@@ -120,45 +135,69 @@ const PatientForm = () => {
         }
       } else {
         // Generate a new MRN for new patients
-        const lastMrnNumber = mockPatients.length > 0 
-          ? parseInt(mockPatients[mockPatients.length - 1].mrn.replace('MRN', '')) 
-          : 1000;
+        // const lastMrnNumber = mockPatients.length > 0 
+        //   ? parseInt(mockPatients[mockPatients.length - 1].mrn.replace('MRN', '')) 
+        //   : 1000;
         
-        reset({
-          mrn: `MRN${(lastMrnNumber + 1).toString().padStart(4, '0')}`,
-          // Initialize other fields as undefined
-        });
+        // reset({
+        //   mrn: `MRN${(lastMrnNumber + 1).toString().padStart(4, '0')}`,
+        //   // Initialize other fields as undefined
+        // });
+
+
+        const response = await patientApi.getAll(token);
+          const patients = response.data;
+          
+            const lastMrn: number = patients.length > 0 
+            ? Math.max(...patients.map((p: Patient) => parseInt(p.mrn.replace('MRN', ''))))
+            : 1000;
+          
+          reset({
+            mrn: `MRN${(lastMrn + 1).toString().padStart(4, '0')}`,
+          });
+      }} catch (error) {
+        const errorMessage = (error as any)?.response?.data?.message || 'Error loading patient data';
+        toast.error(errorMessage);
+        navigate('/patients');
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
     fetchPatient();
-  }, [id, isEditMode, reset]);
+  }, [id, isEditMode, reset,navigate, getToken]);
 
   const onSubmit = async (data: PatientFormData) => {
     setIsSubmitting(true);
     
     try {
+      const token = await getToken();
+      if (!token) {
+        navigate('/sign-in');
+        return;
+      }
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Success toast
-      toast.success(
-        isEditMode 
-          ? `Patient ${data.firstName} ${data.lastName} updated successfully` 
-          : `Patient ${data.firstName} ${data.lastName} created successfully`
-      );
-      
-      // Navigate back to patient list or patient detail
       if (isEditMode) {
-        navigate(`/patients/${id}`);
+        await patientApi.update(id, data, token);
+        // navigate(`/patients/${id}`);
       } else {
-        navigate('/patients');
+        await patientApi.create(data, token);
+        // navigate('/patients');
       }
+      
+      toast.success(
+       `Patient ${data.firstName} ${data.lastName} ${isEditMode ? 'updated' : 'created'} successfully !`
+      );
+      navigate(isEditMode ? `/patients/${id}` : '/patients');
+      // Navigate back to patient list or patient detail
+      
     } catch (error) {
       // Error toast
-      toast.error('An error occurred. Please try again.');
+      const errorMessage = (error as any)?.response?.data?.message || 'Submission failed';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -272,9 +311,9 @@ const PatientForm = () => {
                   {...register('gender', { required: 'Gender is required' })}
                 >
                   <option value="">Select Gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
                 </select>
                 {errors.gender && (
                   <p className="mt-1 text-sm text-error-500">{errors.gender.message}</p>

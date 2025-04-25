@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect,useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   BedDouble, 
@@ -14,7 +14,7 @@ import {bedApi} from '../services/api'; // ✅ Import bedApi from the appropriat
 
 import { useAuth } from '@clerk/clerk-react';
 import { Bed } from '../types';
-
+import { toast } from 'react-hot-toast';
 // Mock data
 const mockBeds: Bed[] = Array.from({ length: 30 }, (_, i) => {
   const id = `bed-${i + 1}`;
@@ -64,7 +64,71 @@ const BedManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterWard, setFilterWard] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
+  const [showPatientModal, setShowPatientModal] = useState(false);
+  const [patientIdInput, setPatientIdInput] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
   const { getToken } = useAuth();
+
+  const handleStatusChange = async (bedId: string, newStatus: Bed['status'], patientId?: string) => {
+    try {
+      setIsUpdating(true);
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication required");
+        return;
+      }
+
+      const updateData = {
+        status: newStatus,
+        patientId: patientId || null,
+        admissionDate: newStatus === 'OCCUPIED' ? new Date().toISOString() : null,
+        expectedDischargeDate: null,
+        notes: newStatus === 'MAINTENANCE' ? 'Maintenance in progress' : ''
+      };
+
+      await bedApi.update(bedId, updateData, token);
+      toast.success(`Bed status updated to ${newStatus.toLowerCase()}`);
+      fetchBeds(); // Refresh the list
+    } catch (error) {
+      const errorMessage = (error as any).response?.data?.message || "Update failed";
+      toast.error(errorMessage);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const fetchBeds = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const token = await getToken({ skipCache: true });
+      const response = await bedApi.getAll(token ?? undefined);
+      setBeds(response.data);
+    } catch (error) {
+      console.error('Failed to fetch beds:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getToken]);
+
+  const handleDeleteBed = async (bedId: string) => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication required");
+        return;
+      }
+      if (!window.confirm('Are you sure you want to delete this bed?')) {
+        return;
+      }
+      await bedApi.delete(bedId, token);
+      toast.success("Bed deleted successfully");
+      fetchBeds(); // Refresh the list
+    } catch (error) {
+      const errorMessage = (error as any).response?.data?.message || "Deletion failed";
+      toast.error(errorMessage);
+    }
+  }
   useEffect(() => {
     // Simulate API call
     // const fetchBeds = async () => {
@@ -80,21 +144,14 @@ const BedManagement = () => {
     ///
     
     
-    const fetchBeds = async () => {
-      try {
-        setIsLoading(true);
-        const token = await getToken({ skipCache: true });
-        const response = await bedApi.getAll(token ?? undefined); // ✅ use centralized API
-        setBeds(response.data);                // ✅ axios responses store data in `response.data`
-      } catch (error) {
-        console.error('Failed to fetch beds:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    
+
+    
+  
+    
   
     fetchBeds();
-  }, []);
+}, [fetchBeds]);
 
   // Filter beds based on search term and filters
   const filteredBeds = beds.filter(bed => {
@@ -430,20 +487,23 @@ const BedManagement = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {bed.status === 'AVAILABLE' ? (
-                      <button className="text-primary-500 hover:text-primary-700 mr-2">
+                      <button onClick={() => {
+                        setSelectedBed(bed);
+                        setShowPatientModal(true);
+                      }} className="text-primary-500 hover:text-primary-700 mr-2">
                         Assign Patient
                       </button>
                     ) : bed.status === 'OCCUPIED' ? (
-                      <button className="text-warning-500 hover:text-warning-700 mr-2">
+                      <button onClick={() => handleStatusChange(bed.id, 'AVAILABLE')} className="text-warning-500 hover:text-warning-700 mr-2">
                         Discharge
                       </button>
                     ) : (
-                      <button className="text-success-500 hover:text-success-700 mr-2">
+                      <button  onClick={() => handleStatusChange(bed.id, 'AVAILABLE')} className="text-success-500 hover:text-success-700 mr-2">
                         Mark Available
                       </button>
                     )}
-                    <button className="text-neutral-500 hover:text-neutral-700">
-                      Edit
+                    <button   onClick={() => handleDeleteBed(bed.id)} className="text-neutral-500 hover:text-neutral-700">
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -452,6 +512,40 @@ const BedManagement = () => {
           </table>
         </div>
       </motion.div>
+      {showPatientModal && selectedBed && (
+  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full">
+      <h2 className="text-xl font-semibold mb-4">Assign Patient to {selectedBed.bedNumber}</h2>
+      <input
+        type="text"
+        placeholder="Enter Patient ID"
+        className="form-input mb-4 w-full"
+        id="patientId"
+        onChange={(e) => setPatientIdInput(e.target.value)}
+      />
+      <div className="flex justify-end gap-4">
+        <button
+          onClick={() => setShowPatientModal(false)}
+          className="btn btn-outline"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={async () => {
+            if (patientIdInput) {
+              await handleStatusChange(selectedBed.id, 'OCCUPIED', patientIdInput);
+              setPatientIdInput(''); // Clear input
+              setShowPatientModal(false);
+            }
+          }}
+          className="btn btn-primary"
+        >
+          {isUpdating ? 'Assigning...' : 'Assign'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </motion.div>
   );
 };

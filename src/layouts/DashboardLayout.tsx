@@ -16,6 +16,7 @@ import {
   Settings,
   ChevronDown
 } from 'lucide-react';
+import Sidebar from './Sidebar';
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -24,7 +25,10 @@ const DashboardLayout = () => {
   const { signOut } = useClerk();
   const navigate = useNavigate();
 
-  const userRole = user?.publicMetadata?.role as string || 'admin';
+  // const userRole = user?.publicMetadata?.role as string || 'admin';
+
+  //new code
+  const userRole = user?.unsafeMetadata?.role as string || 'admin';
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -103,6 +107,18 @@ const DashboardLayout = () => {
     }
   };
 
+  //new code
+
+  const { isLoaded } = useUser();
+
+if (!isLoaded) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+    </div>
+  );
+}
+
   return (
     <div className="min-h-screen bg-neutral-50 flex">
       {/* Mobile Overlay */}
@@ -177,6 +193,9 @@ const DashboardLayout = () => {
               </li>
             ))}
           </ul>
+
+          {/* //new code */}
+          {/* <Sidebar /> */}
         </nav>
       </aside>
       

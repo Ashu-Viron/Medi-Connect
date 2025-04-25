@@ -18,9 +18,10 @@ import {
   Pill,
   Activity
 } from 'lucide-react';
-
+import { useAuth } from '@clerk/clerk-react';
+import { patientApi } from '../services/api';
 import { Patient, Appointment, Admission, Bed } from '../types';
-
+import {printPatientRecord} from '../utils/export'
 // Mock patient data
 const mockPatients: Patient[] = Array.from({ length: 10 }, (_, i) => {
   const id = `patient-${i + 100}`;
@@ -258,31 +259,51 @@ const PatientDetails = () => {
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'appointments' | 'admissions'>('overview');
+  const { getToken } = useAuth();
 
   useEffect(() => {
     // Simulate API call
     const fetchPatientData = async () => {
       // In a real app, this would be an API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    //   await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const foundPatient = mockPatients.find(p => p.id === id) || null;
-      setPatient(foundPatient);
+    //   const foundPatient = mockPatients.find(p => p.id === id) || null;
+    //   setPatient(foundPatient);
       
-      if (foundPatient) {
-        const patientAppointments = getMockAppointments(foundPatient.id);
-        const patientAdmissions = getMockAdmissions(foundPatient.id);
+    //   if (foundPatient) {
+    //     const patientAppointments = getMockAppointments(foundPatient.id);
+    //     const patientAdmissions = getMockAdmissions(foundPatient.id);
         
-        setAppointments(patientAppointments);
-        setAdmissions(patientAdmissions);
-      }
+    //     setAppointments(patientAppointments);
+    //     setAdmissions(patientAdmissions);
+    //   }
       
-      setIsLoading(false);
+    //   setIsLoading(false);
+    // };
+      try {
+        setIsLoading(true);
+        const token = await getToken(); // Clerk token
+        const { data: foundPatient } = await patientApi.getById(id!, token??undefined);
+        setPatient(foundPatient);
+  
+        const [appointmentsRes, admissionsRes] = await Promise.all([
+          patientApi.getAppointments(id!,token??undefined),
+          patientApi.getAdmissions(id!,token??undefined)
+        ]);
+  
+        setAppointments(appointmentsRes.data);
+        setAdmissions(admissionsRes.data);
+      } catch (error) {
+        console.error("Error fetching patient data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     if (id) {
       fetchPatientData();
     }
-  }, [id]);
+  }, [id, getToken]);
 
   // Calculate age
   const calculateAge = (dateOfBirth: string): number => {
@@ -377,7 +398,7 @@ const PatientDetails = () => {
             <Edit className="h-4 w-4 mr-2" />
             Edit Patient
           </Link>
-          <button className="btn btn-outline flex items-center">
+          <button className="btn btn-outline flex items-center" onClick={()=>{printPatientRecord(patient, appointments, admissions)}}>
             <Printer className="h-4 w-4 mr-2" />
             Print Record
           </button>
@@ -470,7 +491,13 @@ const PatientDetails = () => {
                           {recentAppointment.type.charAt(0).toUpperCase() + recentAppointment.type.slice(1)} appointment
                         </p>
                         <p className="text-sm text-neutral-500">
-                          {new Date(recentAppointment.date + 'T' + recentAppointment.time).toLocaleString()} with Dr. {recentAppointment.doctor?.lastName}
+                          {new Date(`${recentAppointment.date}T${recentAppointment.time}`).toLocaleString(undefined, {
+                            year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                    })} with Dr. {recentAppointment.doctor?.lastName}
                         </p>
                       </div>
                       <span className={`px-2 py-1 h-fit text-xs rounded-full

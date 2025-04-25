@@ -225,7 +225,7 @@ const OPDQueue = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterDoctor, setFilterDoctor] = useState<string>('all');
   const { user } = useUser();
-  const userRole = user?.publicMetadata?.role as string || 'receptionist';
+  const userRole = user?.unsafeMetadata?.role as string || 'receptionist';
 
   useEffect(() => {
     // Simulate API call

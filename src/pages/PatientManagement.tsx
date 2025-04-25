@@ -16,6 +16,8 @@ import { exportToCSV } from '../utils/export';
 import { Patient } from '../types';
 import { useAuth } from '@clerk/clerk-react';
 import { patientApi } from '../services/api';
+import { useNavigate } from "react-router-dom";
+import DeletePatient from './DeletePatient';
 // Mock data
 const mockPatients: Patient[] = Array.from({ length: 20 }, (_, i) => {
   const id = `patient-${i + 100}`;
@@ -99,6 +101,24 @@ const PatientManagement = () => {
   const [sortField, setSortField] = useState<string>('lastName');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const { getToken } = useAuth();
+  const handleDeleteSuccess = () => {
+    // Refresh the patient list after deletion
+    fetchPatients();
+  };
+
+  const fetchPatients = async () => {
+    try {
+      setIsLoading(true);
+      const token = await getToken({ skipCache: true });
+      const response = await patientApi.getAll(token ?? undefined);
+      setPatients(response.data);
+    } catch (error) {
+      console.error('Failed to fetch patients:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   useEffect(() => {
     // Simulate API call
     // const fetchPatients = async () => {
@@ -108,7 +128,7 @@ const PatientManagement = () => {
     //   setIsLoading(false);
     // };
 
-    // fetchPatients();
+    fetchPatients();
     const fetchBeds = async () => {
           try {
             setIsLoading(true);
@@ -415,7 +435,7 @@ const PatientManagement = () => {
                           className="text-error-500 hover:text-error-700"
                           title="Delete Patient"
                         >
-                          <Trash className="h-5 w-5" />
+                          <DeletePatient patientId={patient.id}  onDeleteSuccess={handleDeleteSuccess}/>
                         </button>
                       </div>
                     </td>

@@ -26,12 +26,14 @@ import NotFound from './pages/NotFound';
 // Components
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import RoleBasedRoute from './components/auth/RoleBasedRoute';
-import Team from './pages/teams';
+import Team from './pages/Teams';
 import About from './components/About';
 import SignOut from './components/auth/SignOut';
 import BedForm from './components/beds/BedForm';
 import AppointmentForm from './components/appointments/AppointmentForm';
 import InventoryForm from './components/Inventoryform';
+import UnauthorizedPage from './components/auth/Unauthorized';
+import RoleSelector from './components/auth/RoleSelector';
 
 function LoadingScreen() {
   return (
@@ -46,19 +48,27 @@ function LoadingScreen() {
 
 function AuthenticatedApp() {
   const navigate=useNavigate();
-  const { isSignedIn } = useUser();
+  const {isLoaded, isSignedIn,user } = useUser();
   
+  if (!isLoaded) {
+    return <LoadingScreen />;
+  }
 
   if (!isSignedIn) {
     return <Navigate to="/sign-in" replace />;
   }
   
+  // if (!user?.unsafeMetadata?.role) {
+  //   return <Navigate to="/select-role" state={{ from: location.pathname }} replace />;
+  // }
   return (
     <Routes>
       <Route element={<DashboardLayout />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<ProtectedRoute component={Dashboard} />} />
         
+        
+
         <Route path="/opd-queue" element={<ProtectedRoute component={OPDQueue} />} />
         <Route path='/opd-queue/new' element={<AppointmentForm onClose={()=>{navigate("/opd-queue")}} onSuccess={()=>{navigate("/opd-queue")}}/>}/>
 
@@ -105,6 +115,9 @@ function AuthenticatedApp() {
           } 
         />
       </Route>
+      {/* // New code */}
+      <Route path="/select-role" element={<RoleSelector />} />
+      <Route path="/unauthorized" element={<UnauthorizedPage />} />
       <Route path="/sign-out" element={<SignOut />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

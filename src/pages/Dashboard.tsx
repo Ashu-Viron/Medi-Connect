@@ -34,8 +34,9 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
+import { useAuth } from '@clerk/clerk-react';
 import { DashboardSummary } from '../types';
+import { dashboardApi } from '../services/api';
 
 // Mock data - to be replaced with API calls
 const mockDashboardData: DashboardSummary = {
@@ -221,20 +222,131 @@ const bedOccupancyData = {
 
 const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null);
+  const [chartData, setChartData] = useState<any>(null);
+  const[bedOccupancyData,setBedOccupancyData]=useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useUser();
-  const userRole = user?.publicMetadata?.role as string || 'admin';
+  const userRole = user?.unsafeMetadata?.role as string || 'admin';
+   const { getToken } = useAuth();
 
   useEffect(() => {
     // Simulate API call
-    const fetchData = async () => {
+    // const fetchData = async () => {
       // In a real app, this would be an API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setDashboardData(mockDashboardData);
-      setIsLoading(false);
+    //   await new Promise(resolve => setTimeout(resolve, 1000));
+    //   setDashboardData(mockDashboardData);
+    //   setIsLoading(false);
+    // };
+
+    // fetchData();
+    const fetchBeds = async () => {
+          try {
+            setIsLoading(true);
+            const token = await getToken({ skipCache: true });
+            const response = await dashboardApi.getSummary(token ?? undefined); // ✅ use centralized API
+            setDashboardData(response.data);                // ✅ axios responses store data in `response.data`
+          } catch (error) {
+            console.error('Failed to fetch beds:', error);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+      
+        fetchBeds();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        const response = await dashboardApi.getAppointmentStats(token??undefined);
+        const dailyData = response.data.daily;
+
+        // Create a map of day => count for easy lookup
+        const dayMap: Record<string, number> = {};
+        dailyData.forEach((entry: any) => {
+          const dateStr = entry.day.slice(0, 10); // 'YYYY-MM-DD'
+          dayMap[dateStr] = parseInt(entry.count);
+        });
+        
+        const labels: string[] = [];
+        const data: number[] = [];
+        
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(today.getDate() - i);
+        
+          const dateStr = date.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+          const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+        
+          labels.push(weekday);
+          data.push(dayMap[dateStr] || 0);
+        }
+        setChartData({
+          labels,
+          datasets: [
+            {
+              label: 'Appointments',
+              data,
+              backgroundColor: 'rgba(8, 145, 178, 0.6)',
+              borderColor: 'rgba(8, 145, 178, 1)',
+              borderWidth: 1,
+            },
+          ],
+        });
+      } catch (err) {
+        console.error('Failed to fetch appointment stats:', err);
+      }
     };
 
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchBedStats = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        const response = await dashboardApi.getBedStats(token ?? undefined);
+        const stats = response.data;
+  
+        const labels = Object.keys(stats); // Ward names
+        const available = labels.map(ward => stats[ward].available || 0);
+        const occupied = labels.map(ward => stats[ward].occupied || 0);
+        const maintenance = labels.map(ward => stats[ward].maintenance || 0);
+  
+        setBedOccupancyData({
+          labels,
+          datasets: [
+            {
+              label: 'Available',
+              data: available,
+              backgroundColor: 'rgba(5, 150, 105, 0.6)',
+              borderColor: 'rgba(5, 150, 105, 1)',
+              borderWidth: 1,
+            },
+            {
+              label: 'Occupied',
+              data: occupied,
+              backgroundColor: 'rgba(8, 145, 178, 0.6)',
+              borderColor: 'rgba(8, 145, 178, 1)',
+              borderWidth: 1,
+            },
+            {
+              label: 'Maintenance',
+              data: maintenance,
+              backgroundColor: 'rgba(251, 191, 36, 0.6)',
+              borderColor: 'rgba(8, 145, 178, 1)',
+              borderWidth: 1,
+            }
+          ]
+        });
+      } catch (error) {
+        console.error('Failed to fetch bed stats:', error);
+      }
+    };
+  
+    fetchBedStats();
   }, []);
 
   if (isLoading) {
@@ -379,7 +491,7 @@ const Dashboard = () => {
               <option>Last Month</option>
             </select>
           </div>
-          <div className="h-64">
+          {/* <div className="h-64">
             <Bar 
               data={appointmentChartData} 
               options={{
@@ -392,7 +504,25 @@ const Dashboard = () => {
                 },
               }} 
             />
-          </div>
+          </div> */}
+          <div className="h-64">
+          {chartData ? (
+            <Bar
+              data={chartData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'top',
+                  },
+                },
+              }}
+            />
+          ) : (
+            <div className="text-center mt-10">Loading chart...</div>
+          )}
+        </div>
         </motion.div>
 
         <motion.div variants={cardVariants} className="card">
@@ -404,7 +534,7 @@ const Dashboard = () => {
               <option>Last Month</option>
             </select>
           </div>
-          <div className="h-64">
+          {/* <div className="h-64">
             <Bar 
               data={bedOccupancyData} 
               options={{
@@ -425,6 +555,30 @@ const Dashboard = () => {
                 },
               }} 
             />
+          </div> */}
+           <div className="h-64">
+            {bedOccupancyData ? (
+              <Bar 
+                data={bedOccupancyData} 
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'top',
+                    },
+                  },
+                  scales: {
+                    x: { stacked: true },
+                    y: { stacked: true },
+                  },
+                }} 
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                Loading chart...
+              </div>
+            )}
           </div>
         </motion.div>
       </div>

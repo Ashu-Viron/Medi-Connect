@@ -48,7 +48,7 @@ const RoleSelector = () => {
     setIsLoading(true);
     try {
       // Get the roles config to access the role title for the toast message
-      const rolesConfig = (user?.publicMetadata?.roles || {}) as RolesConfig;
+      const rolesConfig = (user?.unsafeMetadata?.roles || {}) as RolesConfig;
       const roleTitle = rolesConfig[selectedRole]?.title || selectedRole;
 
       // Only update the role in publicMetadata
@@ -59,8 +59,15 @@ const RoleSelector = () => {
       });
 
       // Get the redirect path from location state or default to dashboard
+      // const from = (location.state as any)?.from?.pathname || '/dashboard';
+      // navigate(from, { replace: true });
+
+      // new code
       const from = (location.state as any)?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+      navigate(from, { 
+        replace: true,
+        state: undefined // Clear any complex state objects
+      });
       
       toast.success(`Welcome! You're logged in as ${roleTitle}`);
     } catch (error) {
@@ -83,7 +90,7 @@ const RoleSelector = () => {
   };
 
   // Get roles from user's metadata with proper null checking
-  const rolesConfig = (user?.publicMetadata?.roles || {}) as RolesConfig;
+  const rolesConfig = (user?.unsafeMetadata?.roles || {}) as RolesConfig;
   const roles = Object.entries(rolesConfig).map(([id, data]) => ({
     id,
     ...data,

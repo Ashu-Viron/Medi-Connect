@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react';
+
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -46,16 +46,36 @@ export const patientApi = {
       Authorization: token ? `Bearer ${token}` : '',
     },
   }),
-  getById: (id: string) => api.get(`/patients/${id}`),
-  create: (data: any) => api.post('/patients', data, {
+  getById: (id: string,token?: string) => api.get(`/patients/${id}`, {
     headers: {
-      'Requires-Auth': 'true'
-    }
+      Authorization: token ? `Bearer ${token}` : '',
+    },
   }),
-  update: (id: string, data: any) => api.put(`/patients/${id}`, data),
-  delete: (id: string) => api.delete(`/patients/${id}`),
-  getAppointments: (id: string) => api.get(`/patients/${id}/appointments`),
-  getAdmissions: (id: string) => api.get(`/patients/${id}/admissions`),
+  create: (data: any,token?:string) => api.post('/patients', data, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
+  update: (id: string, data: any,token?: string) => api.put(`/patients/${id}`, data, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
+  delete: (id: string,token?: string) => api.delete(`/patients/${id}`, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
+  getAppointments: (id: string,token?: string) => api.get(`/patients/${id}/appointments`, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
+  getAdmissions: (id: string,token?: string) => api.get(`/patients/${id}/admissions`, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
 };
 
 // Appointment API
@@ -89,15 +109,33 @@ export const bedApi = {
       Authorization: token ? `Bearer ${token}` : '',
     },
   }),
-  getByWard: (ward: string) => api.get(`/beds/ward/${ward}`),
-  getAvailable: () => api.get('/beds/available'),
-  getById: (id: string) => api.get(`/beds/${id}`),
+  getByWard: (ward: string,token?: string) => api.get(`/beds/ward/${ward}`, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
+  getAvailable: (token?: string) => api.get('/beds/available', {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
+  getById: (id: string,token?: string) => api.get(`/beds/${id}`, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
   create: (data: any,token?: string) => api.post('/beds', data, {
     headers: {
       Authorization: token ? `Bearer ${token}` : '',
     },}),
-  update: (id: string, data: any) => api.put(`/beds/${id}`, data),
-  delete: (id: string) => api.delete(`/beds/${id}`),
+  update: (id: string, data: any,token?: string) => api.put(`/beds/${id}`, data, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },}),
+  delete: (id: string,token?: string) => api.delete(`/beds/${id}`, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },}),
   
 };
 
@@ -113,15 +151,35 @@ export const admissionApi = {
 
 // Dashboard API
 export const dashboardApi = {
-  getSummary: () => api.get('/dashboard/summary'),
-  getAppointmentStats: () => api.get('/dashboard/appointments/stats'),
-  getBedStats: () => api.get('/dashboard/beds/stats'),
+  getSummary: (token?: string) => api.get('/dashboard/summary' ,{
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
+  getAppointmentStats: (token?: string) => api.get('/dashboard/appointments/stats',{
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
+  getBedStats: (token?: string) => api.get('/dashboard/beds/stats',{
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
 };
 
 // Inventory API
 export const inventoryApi = {
-  getAll: () => api.get('/inventory'),
-  getById: (id: string) => api.get(`/inventory/${id}`),
+  getAll: (token?: string) => api.get('/inventory', {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
+  getById: (id: string,token?: string) => api.get(`/inventory/${id}`, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }),
   create: (data: any, token?: string) =>
     api.post('/inventory', data, {
       headers: {
